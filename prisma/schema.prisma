@@ -1,0 +1,179 @@
+// Prisma Schema for Hallet EdTech Platform
+// Multi-tenant architecture for medical colleges
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Enums
+// ============================================
+
+enum UserRole {
+  STUDENT
+  DOCTOR
+  ADMIN
+}
+
+enum Subject {
+  ANATOMY
+  PHYSIOLOGY
+  BIOCHEMISTRY
+  PATHOLOGY
+  PHARMACOLOGY
+  MICROBIOLOGY
+  FORENSIC_MEDICINE
+  COMMUNITY_MEDICINE
+  OPHTHALMOLOGY
+  ENT
+  MEDICINE
+  SURGERY
+  OBSTETRICS_GYNECOLOGY
+  PEDIATRICS
+  ORTHOPEDICS
+  DERMATOLOGY
+  PSYCHIATRY
+  RADIOLOGY
+  ANESTHESIOLOGY
+}
+
+enum SubscriptionTier {
+  FREE
+  BASIC
+  PREMIUM
+  ENTERPRISE
+}
+
+// ============================================
+// Core Application Models
+// ============================================
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  hashedPassword String?
+  role           UserRole  @default(STUDENT)
+
+  // Multi-tenancy: link to medical college
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  // NextAuth relations
+  accounts Account[]
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("users")
+}
+
+model Organization {
+  id               String           @id @default(cuid())
+  name             String           // e.g., "AIIMS Delhi", "JIPMER"
+  slug             String           @unique // URL-friendly identifier
+  logo             String?
+  subscriptionTier SubscriptionTier @default(FREE)
+  maxStudents      Int              @default(100)
+  isActive         Boolean          @default(true)
+
+  // Relations
+  users          User[]
+  studyMaterials StudyMaterial[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@map("organizations")
+}
+
+model StudyMaterial {
+  id               String   @id @default(cuid())
+  title            String
+  description      String?
+  subject          Subject
+  encryptedFileUrl String   // URL to the AES-encrypted PDF stored in cloud storage
+  encryptionKeyId  String?  // Reference to the KMS key used for encryption
+  fileHash         String?  // SHA-256 hash for integrity verification
+  fileSizeBytes    Int?
+  pageCount        Int?
+
+  // High-yield tags for NEET PG preparation
+  highYieldTags String[] // e.g., ["must-know", "frequently-asked", "important-diagram"]
+
+  // Access control
+  isPublic       Boolean       @default(false)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  // Metadata
+  uploadedById String?
+  version      Int    @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subject])
+  @@index([organizationId])
+  @@index([highYieldTags])
+  @@map("study_materials")
+}
+
+// ============================================
+// NextAuth.js Adapter Models
+// Required by @auth/prisma-adapter
+// ============================================
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
