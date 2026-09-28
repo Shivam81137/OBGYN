@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Activity, User, LogOut, GraduationCap, ChevronDown, Sparkles } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import PWAInstallButton from "@/components/pwa/PWAInstallButton";
 import AuthModal, { UserProfile } from "@/components/auth/AuthModal";
 
 export default function Navbar() {
@@ -66,8 +67,9 @@ export default function Navbar() {
             </div>
           </a>
 
-          {/* Right Section: Theme Toggle & Authentication */}
-          <div className="flex items-center gap-3">
+          {/* Right Section: PWA Install Button, Theme Toggle & Authentication */}
+          <div className="flex items-center gap-2.5">
+            <PWAInstallButton />
             <ThemeToggle />
 
             {user ? (

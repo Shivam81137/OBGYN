@@ -1,220 +1,275 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useMemo, Suspense, useState, useEffect } from "react";
+import { Brain } from "lucide-react";
 import * as THREE from "three";
-import { Brain, Eye, Sparkles, RefreshCw } from "lucide-react";
 
-export default function FetalBrain3D() {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [activeHighlight, setActiveHighlight] = useState<"all" | "ventricles" | "calcifications">("all");
+// Dynamically import R3F to avoid SSR issues
+let useFrameHook: any = null;
+let FloatComponent: any = null;
+let OrbitControlsComponent: any = null;
+let SparklesComponent: any = null;
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+interface ConstellationNode {
+  position: THREE.Vector3;
+  radius: number;
+  type: "normal" | "ventricle" | "calcification";
+  phase: number;
+  speed: number;
+}
 
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+function GlassNeuralStructure() {
+  const clusterRef = useRef<THREE.Group>(null);
+  const elapsedRef = useRef(0);
 
-    // 1. Scene setup
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0f1d);
+  // Generate an abstract neural cluster shape (two anatomical lobes connected by central synapses)
+  const nodes = useMemo(() => {
+    const list: ConstellationNode[] = [];
 
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 2, 10);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
-
-    // 2. Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-
-    const cyanLight = new THREE.PointLight(0x00f0ff, 2, 20);
-    cyanLight.position.set(5, 5, 5);
-    scene.add(cyanLight);
-
-    const purpleLight = new THREE.PointLight(0xa855f7, 2, 20);
-    purpleLight.position.set(-5, -5, -5);
-    scene.add(purpleLight);
-
-    // 3. Fetal Brain Model (Anatomical Hemispheres)
-    const brainGroup = new THREE.Group();
-    scene.add(brainGroup);
-
-    // Left & Right Cortex Hemispheres
-    const cortexMat = new THREE.MeshPhongMaterial({
-      color: 0x334155,
-      transparent: true,
-      opacity: 0.45,
-      wireframe: true,
-    });
-
-    const leftHemisphere = new THREE.Mesh(new THREE.SphereGeometry(2.2, 32, 32), cortexMat);
-    leftHemisphere.position.x = -1.2;
-    leftHemisphere.scale.set(1, 0.85, 1.3);
-    brainGroup.add(leftHemisphere);
-
-    const rightHemisphere = new THREE.Mesh(new THREE.SphereGeometry(2.2, 32, 32), cortexMat);
-    rightHemisphere.position.x = 1.2;
-    rightHemisphere.scale.set(1, 0.85, 1.3);
-    brainGroup.add(rightHemisphere);
-
-    // 4. Ventriculomegaly (Dilated Lateral Ventricles)
-    const ventricleGroup = new THREE.Group();
-    brainGroup.add(ventricleGroup);
-
-    const ventricleMat = new THREE.MeshStandardMaterial({
-      color: 0x00f0ff,
-      emissive: 0x0088aa,
-      transparent: true,
-      opacity: 0.8,
-      roughness: 0.2,
-    });
-
-    const leftVentricle = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.35, 16, 32, Math.PI * 1.2), ventricleMat);
-    leftVentricle.position.set(-1.0, 0.2, 0);
-    leftVentricle.rotation.x = Math.PI / 3;
-    ventricleGroup.add(leftVentricle);
-
-    const rightVentricle = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.35, 16, 32, Math.PI * 1.2), ventricleMat);
-    rightVentricle.position.set(1.0, 0.2, 0);
-    rightVentricle.rotation.x = Math.PI / 3;
-    rightVentricle.rotation.y = Math.PI;
-    ventricleGroup.add(rightVentricle);
-
-    // 5. Intracranial Calcifications (Toxoplasmosis / CMV specs)
-    const calcificationGroup = new THREE.Group();
-    brainGroup.add(calcificationGroup);
-
-    const calcMat = new THREE.MeshStandardMaterial({
-      color: 0xf59e0b,
-      emissive: 0xd97706,
-      roughness: 0.1,
-    });
-
-    // Random focal calcification specs
+    // Left & Right cluster spheres (abstract lobes)
     for (let i = 0; i < 28; i++) {
-      const radius = 0.12 + Math.random() * 0.1;
-      const spec = new THREE.Mesh(new THREE.SphereGeometry(radius, 12, 12), calcMat);
-      
-      // Distribute in brain parenchyma & periventricular space
+      const isRight = i % 2 === 0;
+      const offsetX = isRight ? 1.3 : -1.3;
       const phi = Math.random() * Math.PI * 2;
       const theta = Math.random() * Math.PI;
-      const r = 1.4 + Math.random() * 1.2;
+      const r = 1.2 + Math.random() * 0.9;
 
-      spec.position.x = r * Math.sin(theta) * Math.cos(phi);
-      spec.position.y = r * Math.sin(theta) * Math.sin(phi) * 0.7;
-      spec.position.z = r * Math.cos(theta) * 1.1;
+      // 4 ventricle nodes (cyan glowing)
+      const isVentricle = i < 4;
+      // 6 calcification nodes (amber glowing)
+      const isCalc = i >= 4 && i < 10;
 
-      calcificationGroup.add(spec);
+      list.push({
+        position: new THREE.Vector3(
+          offsetX + r * Math.sin(theta) * Math.cos(phi),
+          r * Math.sin(theta) * Math.sin(phi) * 0.75,
+          r * Math.cos(theta) * 1.1
+        ),
+        radius: isVentricle ? 0.28 : isCalc ? 0.16 : 0.14 + Math.random() * 0.12,
+        type: isVentricle ? "ventricle" : isCalc ? "calcification" : "normal",
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.5 + Math.random() * 0.8,
+      });
     }
 
-    // 6. Orbit Mouse Dragging
-    let isDragging = false;
-    let previousMousePosition = { x: 0, y: 0 };
+    return list;
+  }, []);
 
-    const onMouseDown = (e: MouseEvent) => {
-      isDragging = true;
-      previousMousePosition = { x: e.clientX, y: e.clientY };
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      const deltaX = e.clientX - previousMousePosition.x;
-      const deltaY = e.clientY - previousMousePosition.y;
-
-      brainGroup.rotation.y += deltaX * 0.01;
-      brainGroup.rotation.x += deltaY * 0.01;
-
-      previousMousePosition = { x: e.clientX, y: e.clientY };
-    };
-
-    const onMouseUp = () => {
-      isDragging = false;
-    };
-
-    const domElement = renderer.domElement;
-    domElement.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-
-    // 7. Animation Loop
-    let animId: number;
-    const animate = () => {
-      animId = requestAnimationFrame(animate);
-
-      // Auto gentle spin
-      brainGroup.rotation.y += 0.003;
-
-      // Pulsing ventricles for ventriculomegaly simulation
-      const scalePulse = 1 + Math.sin(Date.now() * 0.003) * 0.08;
-      ventricleGroup.scale.set(scalePulse, scalePulse, scalePulse);
-
-      renderer.render(scene, camera);
-    };
-
-    animate();
-
-    const handleResize = () => {
-      if (!container) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      cancelAnimationFrame(animId);
-      domElement.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      window.removeEventListener("resize", handleResize);
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
+  // Compute connections between close nodes
+  const connections = useMemo(() => {
+    const list: { from: number; to: number }[] = [];
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dist = nodes[i].position.distanceTo(nodes[j].position);
+        if (dist < 2.0) {
+          list.push({ from: i, to: j });
+        }
       }
-    };
+    }
+    return list;
+  }, [nodes]);
+
+  // Pre-create THREE.Line objects for connections
+  const lineObjects = useMemo(() => {
+    return connections.map((conn) => {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
+      const mat = new THREE.LineBasicMaterial({
+        color: "#06b6d4",
+        transparent: true,
+        opacity: 0.25,
+      });
+      return { line: new THREE.Line(geo, mat), conn };
+    });
+  }, [connections]);
+
+  if (useFrameHook) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useFrameHook((state: any, delta: number) => {
+      elapsedRef.current = state.clock.elapsedTime;
+      const t = state.clock.elapsedTime;
+
+      if (clusterRef.current) {
+        clusterRef.current.rotation.y += delta * 0.12;
+        clusterRef.current.rotation.x = Math.sin(t * 0.2) * 0.1;
+      }
+
+      // Update line vertex positions in real-time
+      lineObjects.forEach(({ line, conn }) => {
+        const posAttr = line.geometry.getAttribute("position") as THREE.BufferAttribute;
+        const a = nodes[conn.from];
+        const b = nodes[conn.to];
+
+        const ay = a.position.y + Math.sin(t * a.speed + a.phase) * 0.1;
+        const by = b.position.y + Math.sin(t * b.speed + b.phase) * 0.1;
+
+        posAttr.setXYZ(0, a.position.x, ay, a.position.z);
+        posAttr.setXYZ(1, b.position.x, by, b.position.z);
+        posAttr.needsUpdate = true;
+      });
+    });
+  }
+
+  const Float = FloatComponent || "group";
+  const floatProps = FloatComponent ? { speed: 1.0, rotationIntensity: 0.1, floatIntensity: 0.3 } : {};
+
+  return (
+    <>
+      {/* Premium Glass Refraction Lighting */}
+      <ambientLight intensity={0.4} color="#c4b5fd" />
+      <pointLight position={[6, 6, 5]} intensity={3} color="#06b6d4" distance={20} decay={2} />
+      <pointLight position={[-5, -4, -4]} intensity={2.2} color="#a855f7" distance={18} decay={2} />
+      <pointLight position={[0, 3, -7]} intensity={1} color="#f97316" distance={15} decay={2} />
+
+      {SparklesComponent && (
+        <SparklesComponent count={45} scale={9} size={1.4} speed={0.2} opacity={0.3} color="#06b6d4" />
+      )}
+
+      <Float {...floatProps}>
+        <group ref={clusterRef}>
+          {/* Glass & Emissive Nodes */}
+          {nodes.map((node, i) => {
+            if (node.type === "ventricle") {
+              return (
+                <mesh key={i} position={[node.position.x, node.position.y, node.position.z]}>
+                  <sphereGeometry args={[node.radius, 24, 24]} />
+                  <meshStandardMaterial
+                    color="#06b6d4"
+                    emissive="#0891b2"
+                    emissiveIntensity={2.5}
+                    transparent
+                    opacity={0.9}
+                    roughness={0.1}
+                  />
+                </mesh>
+              );
+            }
+
+            if (node.type === "calcification") {
+              return (
+                <mesh key={i} position={[node.position.x, node.position.y, node.position.z]}>
+                  <sphereGeometry args={[node.radius, 20, 20]} />
+                  <meshStandardMaterial
+                    color="#f59e0b"
+                    emissive="#d97706"
+                    emissiveIntensity={3.0}
+                    roughness={0.1}
+                  />
+                </mesh>
+              );
+            }
+
+            // Normal frosted glass node
+            return (
+              <mesh key={i} position={[node.position.x, node.position.y, node.position.z]}>
+                <sphereGeometry args={[node.radius, 32, 32]} />
+                <meshPhysicalMaterial
+                  color="#94a3b8"
+                  transmission={1}
+                  roughness={0.1}
+                  thickness={1.5}
+                  clearcoat={1.0}
+                  clearcoatRoughness={0.05}
+                  ior={1.5}
+                  transparent
+                  opacity={0.9}
+                />
+              </mesh>
+            );
+          })}
+
+          {/* Synaptic Connection Lines */}
+          {lineObjects.map(({ line }, i) => (
+            <primitive key={i} object={line} />
+          ))}
+        </group>
+      </Float>
+
+      {OrbitControlsComponent && (
+        <OrbitControlsComponent
+          enableZoom={false}
+          enablePan={false}
+          autoRotate={false}
+          maxPolarAngle={Math.PI * 0.75}
+          minPolarAngle={Math.PI * 0.25}
+        />
+      )}
+    </>
+  );
+}
+
+export default function FetalBrain3D() {
+  const [ready, setReady] = useState(false);
+  const [DynamicCanvas, setDynamicCanvas] = useState<any>(null);
+
+  useEffect(() => {
+    Promise.all([
+      import("@react-three/fiber"),
+      import("@react-three/drei"),
+    ]).then(([fiberMod, dreiMod]) => {
+      useFrameHook = fiberMod.useFrame;
+      FloatComponent = dreiMod.Float;
+      OrbitControlsComponent = dreiMod.OrbitControls;
+      SparklesComponent = dreiMod.Sparkles;
+      setDynamicCanvas(() => fiberMod.Canvas);
+      setReady(true);
+    }).catch(() => {
+      setReady(false);
+    });
   }, []);
 
   return (
-    <div className="relative w-full h-[380px] rounded-2xl overflow-hidden border border-slate-800 bg-obsidian-950">
-      {/* 3D Canvas Mount */}
-      <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+    <div className="relative w-full h-[380px] rounded-2xl overflow-hidden border border-zinc-200/90 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 shadow-sm transition-colors">
+      {/* 3D Canvas */}
+      {ready && DynamicCanvas ? (
+        <Suspense fallback={
+          <div className="w-full h-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+            <div className="text-xs font-bold text-zinc-400 animate-pulse">Loading 3D Visualizer...</div>
+          </div>
+        }>
+          <DynamicCanvas
+            gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+            dpr={[1, 1.5]}
+            camera={{ position: [0, 1.5, 9], fov: 45 }}
+            style={{ width: "100%", height: "100%" }}
+          >
+            <GlassNeuralStructure />
+          </DynamicCanvas>
+        </Suspense>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+          <div className="text-xs font-bold text-zinc-400 animate-pulse">Loading 3D Visualizer...</div>
+        </div>
+      )}
 
       {/* Header Overlay */}
       <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-        <div className="flex items-center gap-2 rounded-xl bg-obsidian-900/80 px-3 py-1.5 border border-slate-800 backdrop-blur-md">
-          <Brain className="h-4 w-4 text-purple-400" />
-          <span className="text-xs font-bold text-white">3D Fetal Brain MRI & USG Visualizer</span>
+        <div className="flex items-center gap-2 rounded-xl glass px-3 py-1.5">
+          <Brain className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+          <span className="text-xs font-bold text-zinc-900 dark:text-white">3D Neural Constellation & Visualizer</span>
         </div>
       </div>
 
-      {/* Interactive Highlights Legend */}
-      <div className="absolute bottom-3 left-3 right-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-xl bg-obsidian-900/90 border border-slate-800/80 backdrop-blur-md text-xs">
+      {/* Legend */}
+      <div className="absolute bottom-3 left-3 right-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-xl glass text-xs">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="h-3 w-3 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff]" />
-            <span className="font-semibold text-slate-200">Ventriculomegaly</span>
-            <span className="text-[0.65rem] text-cyan-300 font-bold bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">Ventriculomegaly</span>
+            <span className="text-[0.65rem] text-cyan-700 dark:text-cyan-300 font-bold bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
               Dilated Ventricles
             </span>
           </div>
-
           <div className="flex items-center gap-2">
             <span className="h-3 w-3 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b]" />
-            <span className="font-semibold text-slate-200">Calcifications</span>
-            <span className="text-[0.65rem] text-amber-300 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">Calcifications</span>
+            <span className="text-[0.65rem] text-amber-700 dark:text-amber-300 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
               Intracranial Specs
             </span>
           </div>
         </div>
-
-        <div className="text-[0.65rem] text-slate-400">
-          Drag 3D model to inspect anatomy
+        <div className="text-[0.65rem] text-zinc-500 dark:text-zinc-400">
+          Drag 3D model to inspect structure
         </div>
       </div>
     </div>
