@@ -2,14 +2,28 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowRight, BookOpen, Stethoscope, Award, Flame, CheckCircle, Zap, Shield, ChevronRight } from "lucide-react";
+import { Sparkles, ArrowRight, BookOpen, Stethoscope, CheckCircle, ChevronRight, Paperclip } from "lucide-react";
 
 export default function PathwaySelector() {
   const [hoveredPath, setHoveredPath] = useState<"ug" | "pg" | null>(null);
   const [selectedPath, setSelectedPath] = useState<"ug" | "pg" | null>(null);
+  const [aiQuery, setAiQuery] = useState("");
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const handleSelectPath = (path: "ug" | "pg") => {
     setSelectedPath(path);
+  };
+
+  const handleAiSubmit = () => {
+    if (!aiQuery.trim()) return;
+    setIsAiLoading(true);
+    
+    // Simulate AI response
+    setTimeout(() => {
+      setAiResponse("I am the OBGYN AI Tutor. This is a quick demo response! Once you sign in, I can summarize your medical PDFs, generate flashcards, and help you prepare for NEET PG or NEET UG with deep reasoning.");
+      setIsAiLoading(false);
+    }, 1500);
   };
 
   return (
@@ -215,6 +229,81 @@ export default function PathwaySelector() {
           </motion.div>
 
         </div>
+
+        {/* ================= AI ASK BAR (Gemini Style) ================= */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-12 group relative rounded-4xl border border-slate-800 bg-obsidian-900/50 p-6 sm:p-8 hover:border-purple-500/50 transition-all duration-500"
+        >
+          {/* Ambient Glow */}
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-transparent to-cyan-500/5 rounded-4xl pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <h3 className="text-xl font-bold text-white">Ask OBGYN AI Tutor</h3>
+            </div>
+
+            <div className="relative mt-2">
+              <textarea
+                value={aiQuery}
+                onChange={(e) => setAiQuery(e.target.value)}
+                placeholder="Ask any medical question, search for a concept, or try 'Explain Brachial Plexus like I'm 5'..."
+                className="w-full min-h-[140px] resize-none rounded-2xl border-0 bg-obsidian-950/80 p-5 pb-16 text-base text-slate-200 placeholder:text-slate-500 focus:ring-2 focus:ring-purple-500 shadow-inner"
+              />
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                <button
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 hover:bg-slate-800 hover:text-purple-400 transition-colors"
+                  title="Attach PDF Document (Demo)"
+                >
+                  <Paperclip className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={handleAiSubmit}
+                  disabled={isAiLoading || !aiQuery.trim()}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 text-white shadow-lg shadow-purple-600/30 hover:bg-purple-500 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
+                  title="Send Question"
+                >
+                  {isAiLoading ? (
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <ArrowRight className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* AI Response Area */}
+            <AnimatePresence>
+              {aiResponse && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginTop: 16 }}
+                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="h-4 w-4 text-purple-400" />
+                      <span className="text-xs font-bold text-purple-300 uppercase tracking-wider">AI Response</span>
+                    </div>
+                    <p className="text-sm text-slate-200 leading-relaxed">
+                      {aiResponse}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <p className="text-center text-xs text-slate-500">
+              Your AI Assistant is ready. This is a live demo — no login required.
+            </p>
+          </div>
+        </motion.div>
       </div>
 
       {/* Interactive Selection Confirmation Modal */}

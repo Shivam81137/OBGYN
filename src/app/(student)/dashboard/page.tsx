@@ -54,6 +54,42 @@ export default function StudentDashboardPage() {
         ))}
       </div>
 
+      {/* AI Assistant Banner */}
+      <div className="mb-8">
+        <div className="glass-card relative overflow-hidden p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 group hover:border-purple-500/50 transition-colors duration-300 cursor-pointer">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-fuchsia-500/5 to-transparent pointer-events-none" />
+          <div className="relative z-10 flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500 text-white shadow-lg shadow-purple-500/30">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09l2.846.813-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white">
+                OBGYN AI Tutor
+              </h2>
+              <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[0.65rem] font-bold text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                Beta
+              </span>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 max-w-xl">
+              Stuck on a topic? Upload a PDF to get an instant summary, or chat with our Gemini-powered AI tutor to clear your NEET PG doubts instantly.
+            </p>
+          </div>
+          <div className="relative z-10 w-full sm:w-auto flex-shrink-0">
+            <a 
+              href="/ai-assistant"
+              className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 px-6 py-3 text-sm font-bold text-white transition-all shadow-md shadow-purple-600/20"
+            >
+              Start Chatting
+              <svg className="h-4 w-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Quick Access Section */}
       <div className="mb-8">
         <h2 className="mb-4 text-base sm:text-lg font-black text-slate-900 dark:text-white">
