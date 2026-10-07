@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
-import { ThemeProvider } from "@/components/ThemeProvider";
+import Providers from "@/components/Providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -74,9 +74,9 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Conceptual OBGYN" />
       </head>
       <body className="font-sans antialiased bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-100 selection:bg-cyan-500 selection:text-black transition-colors duration-300">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <Providers>
           {children}
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

@@ -1,17 +1,19 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 
 /**
  * NextAuth v5 (Auth.js) Configuration
  *
- * Uses JWT strategy for session management — optimal for
- * multi-tenant B2B where database session lookups would add latency.
+ * Uses JWT strategy so that `role` & `organizationId` travel with the
+ * token — no extra DB round-trip per request for authorization checks.
  *
- * The Credentials provider is a placeholder for institutional login.
- * In production, replace with your institution's SSO/SAML provider
- * or add Google/Microsoft OAuth for medical college email domains.
+ * After sign-in the JWT callback reads the role stored during sign-up
+ * and embeds it in the token → session → middleware can then guard:
+ *   /admin/*   → ADMIN only
+ *   /dashboard → STUDENT only
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -24,14 +26,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/auth/error",
   },
   providers: [
-    /**
-     * Credentials Provider — Placeholder
-     *
-     * TODO: Replace or supplement with:
-     * - Google OAuth (restrict to college email domains)
-     * - Microsoft Azure AD (for institutional SSO)
-     * - Custom SAML provider for enterprise clients
-     */
     Credentials({
       name: "Institutional Login",
       credentials: {
@@ -46,29 +40,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         },
       },
       async authorize(credentials) {
-        // TODO: Implement proper credential verification
-        // 1. Validate input with zod
-        // 2. Look up user by email
-        // 3. Verify password hash (bcrypt)
-        // 4. Return user object or null
+        if (!credentials?.email || !credentials?.password) return null;
 
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
-        // Placeholder: In production, verify against database
         const user = await db.user.findUnique({
           where: { email: credentials.email as string },
           include: { organization: true },
         });
 
-        if (!user || !user.hashedPassword) {
-          return null;
-        }
+        if (!user || !user.hashedPassword) return null;
 
-        // TODO: Verify password with bcrypt
-        // const isValid = await bcrypt.compare(credentials.password, user.hashedPassword);
-        // if (!isValid) return null;
+        // Verify the hashed password stored at sign-up
+        const isPasswordValid = await bcrypt.compare(
+          credentials.password as string,
+          user.hashedPassword
+        );
+
+        if (!isPasswordValid) return null;
 
         return {
           id: user.id,
@@ -82,8 +69,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     /**
      * JWT Callback
-     * Embeds role and organizationId into the JWT for
-     * authorization checks without database queries.
+     * Embeds `role` and `organizationId` into the token once at sign-in.
+     * These are used by middleware for route protection without DB queries.
      */
     async jwt({ token, user }) {
       if (user) {
@@ -99,9 +86,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return token;
     },
+
     /**
      * Session Callback
-     * Exposes role and organizationId to the client session.
+     * Exposes `role` and `organizationId` to client-side session consumers.
      */
     async session({ session, token }) {
       if (session.user) {
